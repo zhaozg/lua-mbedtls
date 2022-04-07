@@ -189,6 +189,22 @@ static LUA_FUNCTION(lmbedtls_net_send)
     return ret;
 }
 
+static LUA_FUNCTION(lmbedtls_net_fd)
+{
+    mbedtls_net_context *net = luaL_checkudata(L, 1, LMBEDTLS_NET_MT);
+    if (lua_isnone(L, 2))
+    {
+        lua_pushinteger(L, net->fd);
+    } else
+    {
+        int fd = luaL_checkinteger(L, 2);
+        luaL_argcheck(L, net->fd==-1, 1, "must be unused");
+        net->fd = fd;
+        lua_pushvalue(L, 1);
+    }
+    return 1;
+}
+
 static LUA_FUNCTION(lmbedtls_net_close)
 {
     mbedtls_net_context *net = luaL_checkudata(L, 1, LMBEDTLS_NET_MT);
@@ -224,6 +240,8 @@ struct luaL_Reg net_methods[] =
     {"recv",     lmbedtls_net_recv},
     {"send",     lmbedtls_net_send},
     {"close",    lmbedtls_net_close},
+
+    {"fd",       lmbedtls_net_fd},
 
     {NULL,       NULL}
 };
