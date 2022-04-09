@@ -120,7 +120,7 @@ static LUA_FUNCTION(lmbedtls_md_new)
     alg = luaL_checkstring(L, 1);
     info = mbedtls_md_info_from_string(alg);
     luaL_argcheck(L, info != NULL, 1, strerror(EINVAL));
-    key = luaL_checklstring(L, 2, &len);
+    key = luaL_optlstring(L, 2, NULL, &len);
 
     md = lua_newuserdata(L, sizeof(mbedtls_md_context_t));
 

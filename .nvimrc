@@ -27,6 +27,11 @@ lua << EOF
         args = {"-q", "-l C", "-c", project_root..'/.uncrustify.conf'},
         stdin = true
       }
+      fmt.lua = {
+        exe = "stylua",
+        args = {"-"},
+        stdin = true,
+      }
     end
   })
 

@@ -153,22 +153,22 @@ static LUA_FUNCTION(lmbedtls_cipher_set)
 
     if (strcasecmp(key, "iv")==0)
     {
-        val = (const unsigned char *)luaL_checklstring(L, 2, &len);
+        val = (const unsigned char *)luaL_checklstring(L, 3, &len);
         ret = mbedtls_cipher_set_iv(cph, val, len);
     }
     else if (strcasecmp(key, "key")==0)
     {
         mbedtls_operation_t op;
-        val = (const unsigned char *)luaL_checklstring(L, 2, &len);
-        luaL_argcheck(L, lua_type(L, 3)== LUA_TBOOLEAN, 3,
+        val = (const unsigned char *)luaL_checklstring(L, 3, &len);
+        luaL_argcheck(L, lua_type(L, 4)== LUA_TBOOLEAN, 4,
                       "true for encryption, false for decryption");
-        op = lua_toboolean(L, 3);
+        op = lua_toboolean(L, 4);
 
         ret = mbedtls_cipher_setkey(cph, val, len * CHAR_BIT, op);
     }
     else if (strcasecmp(key, "pad")==0)
     {
-        mbedtls_cipher_padding_t pad = luaL_checkoption(L, 2, NULL, cipher_pad);
+        mbedtls_cipher_padding_t pad = luaL_checkoption(L, 3, NULL, cipher_pad);
 #if defined(MBEDTLS_CIPHER_MODE_WITH_PADDING)
         ret = mbedtls_cipher_set_padding_mode(cph, pad);
 #else

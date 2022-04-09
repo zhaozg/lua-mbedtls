@@ -2,6 +2,7 @@
 
 #include "mbedtls/base64.h"
 #include "mbedtls/ctr_drbg.h"
+#include "mbedtls/version.h"
 
 mbedtls_entropy_context lmbedtls_entropy = {0};
 const char *const proto_lst[] = {"tcp", "udp", NULL};
@@ -90,7 +91,27 @@ static LUA_FUNCTION(lmbedtls_hex)
     return 1;
 }
 
-static LUA_FUNCTION(lmbedtls_base64)
+static LUA_FUNCTION(lmbedtls_version)
+{
+    char ver[64];
+
+    mbedtls_version_get_string(ver);
+    lua_pushstring(L, ver);
+    lua_pushinteger(L, mbedtls_version_get_number());
+
+    return 2;
+}
+
+static LUA_FUNCTION(lmbedtls_check_feature)
+{
+    const char *feature = luaL_checkstring(L, 1);
+
+    lua_pushboolean(L, mbedtls_version_check_feature(feature)==0);
+    return 1;
+}
+
+static
+LUA_FUNCTION(lmbedtls_base64)
 {
     int ret;
     size_t isz, osz;
@@ -132,14 +153,18 @@ static LUA_FUNCTION(lmbedtls_debug_set_threshold)
 
 static const luaL_Reg lmbedtls_libs[] =
 {
+    {"version",   lmbedtls_version},
     {"hex",       lmbedtls_hex},
     {"base64",    lmbedtls_base64},
     {"hash",      lmbedtls_hash},
     {"hmac",      lmbedtls_hmac},
 
+    {"check_feature",
+                  lmbedtls_check_feature},
+
 #if defined(MBEDTLS_DEBUG_C)
     {"debug_set_threshold",
-                  lmbedtls_debug_set_threshold},
+     lmbedtls_debug_set_threshold},
 #endif
 
     {NULL,        NULL}
