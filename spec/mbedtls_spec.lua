@@ -19,6 +19,23 @@ describe("mbedtls basic tests", function()
         assert.falsy(mbedtls.check_feature("MBEDTLS_XXXX_C"))
     end)
 
+    describe("random", function()
+
+        local data = assert(mbedtls.random(16))
+        assert.are.equals(16, #data)
+        data = assert(mbedtls.random(32))
+        assert.are.equals(32, #data)
+        data = assert(mbedtls.random(64))
+        assert.are.equals(64, #data)
+        data = assert(mbedtls.random(128))
+        assert.are.equals(128, #data)
+
+        data = assert(mbedtls.random())
+        assert.has_error(function() return mbedtls.random(#data+1) end,
+            "bad argument #1 to '?' (out of range [1, 1024])")
+
+    end)
+
     describe("hex", function()
 
         assert.are.equals("31323334", hex('1234'))

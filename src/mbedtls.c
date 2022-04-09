@@ -151,6 +151,36 @@ static LUA_FUNCTION(lmbedtls_debug_set_threshold)
 }
 #endif
 
+static LUA_FUNCTION(lmbedtls_random)
+{
+    int ret;
+    unsigned char output[MBEDTLS_CTR_DRBG_MAX_REQUEST];
+    mbedtls_ctr_drbg_context *drbg = NULL;
+
+    int len = luaL_optinteger(L, 1, MBEDTLS_CTR_DRBG_MAX_REQUEST);
+
+    if (len > MBEDTLS_CTR_DRBG_MAX_REQUEST)
+    {
+        lua_pushfstring(L, "out of range [1, %d]", MBEDTLS_CTR_DRBG_MAX_REQUEST);
+        return luaL_argerror(L, 1, lua_tostring(L, -1));
+    }
+
+    lua_pushlightuserdata(L, lmbedtls_random);
+    lua_rawget(L, LUA_REGISTRYINDEX);
+    drbg = luaL_testudata(L, -1, LMBEDTLS_RNG_MT);
+    if (drbg == NULL)
+        luaL_error(L, "invalid internal state");
+
+    ret = mbedtls_ctr_drbg_random(drbg, output, len);
+    if (ret)
+    {
+        return mbedtls_pusherror(L, ret);
+    }
+
+    lua_pushlstring(L, (const char *)output, len);
+    return 1;
+}
+
 static const luaL_Reg lmbedtls_libs[] =
 {
     {"version",   lmbedtls_version},
@@ -212,6 +242,17 @@ LUA_FUNCTION(luaopen_mbedtls)
     lua_setfield(L, -2, "_VERSION");
 
     lmbedtls_load(L);
+
+    lua_pushlightuserdata(L, lmbedtls_random);
+    lua_pushcfunction(L, lmbedtls_rng_new);
+    if (lua_pcall (L, 0, 1, 0)==LUA_OK)
+        lua_rawset(L, LUA_REGISTRYINDEX);
+    else
+        return lua_error(L);
+
+    lua_pushstring(L, "random");
+    lua_pushcfunction(L, lmbedtls_random);
+    lua_rawset(L, -3);
 
     return 1;
 }

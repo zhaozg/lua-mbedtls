@@ -141,8 +141,7 @@ static LUA_FUNCTION(lmbedtls_rng_gc)
     return 0;
 }
 
-
-static LUA_FUNCTION(lmbedtls_rng_new)
+LUA_FUNCTION(lmbedtls_rng_new)
 {
     int ret;
     size_t len = 0;

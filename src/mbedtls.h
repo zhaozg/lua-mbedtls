@@ -79,6 +79,7 @@ inline static LUA_FUNCTION(mbedtls_tostring) {
 
 LUA_FUNCTION(lmbedtls_hash);
 LUA_FUNCTION(lmbedtls_hmac);
+LUA_FUNCTION(lmbedtls_rng_new);
 
 // define module names
 #define LMBEDTLS_MD_MT "mbedtls.md"

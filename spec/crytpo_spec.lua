@@ -1,6 +1,5 @@
 local mbedtls = require("mbedtls")
 local hex = mbedtls.hex
-io.read()
 
 describe("mbedtls crypto tests", function()
     local msg = "The quick brown fox jumps over the lazy dog"
@@ -68,9 +67,9 @@ describe("mbedtls crypto tests", function()
                 describe(algs[i], function()
                     local obj = cipher.new(algs[i])
                     local kl, bl = assert(obj:get("keylen")), assert(obj:get("blocksize"))
-                    local key = string.rep("0", kl)
-                    local iv = string.rep("\0", bl)
-                    local dat = string.rep("\0", 2 * bl)
+                    local key = mbedtls.random(kl)
+                    local iv = mbedtls.random(bl)
+                    local dat = mbedtls.random(2 * bl)
 
                     local ret, raw = "", ""
 
