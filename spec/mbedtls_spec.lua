@@ -3,7 +3,7 @@ local hex = mbedtls.hex
 
 describe("mbedtls basic tests", function()
 
-    describe("version", function()
+    it("version", function()
         assert.are.equals("mbedtls", mbedtls._NAME)
         assert.are.equals("0.1.0", mbedtls._VERSION)
 
@@ -19,7 +19,7 @@ describe("mbedtls basic tests", function()
         assert.falsy(mbedtls.check_feature("MBEDTLS_XXXX_C"))
     end)
 
-    describe("random", function()
+    it("random", function()
 
         local data = assert(mbedtls.random(16))
         assert.are.equals(16, #data)
@@ -36,7 +36,7 @@ describe("mbedtls basic tests", function()
 
     end)
 
-    describe("hex", function()
+    it("hex", function()
 
         assert.are.equals("31323334", hex('1234'))
         assert.are.equals("31323334", hex('1234', true))
@@ -44,7 +44,7 @@ describe("mbedtls basic tests", function()
         assert.are.equals("1234", hex('31323334', nil))
     end)
 
-    describe("base64", function()
+    it("base64", function()
         local base64 = mbedtls.base64
 
         assert.are.equals('MTIzNA==', base64('1234'))
@@ -55,14 +55,14 @@ describe("mbedtls basic tests", function()
 
     local msg = 'The quick brown fox jumps over the lazy dog'
 
-    describe("hash", function()
+    it("hash", function()
         local md = mbedtls.md
 
         assert.are.equals('9e107d9d372bb6826bd81d3542a419d6',
             hex(md.hash('MD5', msg)))
     end)
 
-    describe("hmac", function()
+    it("hmac", function()
         local md = mbedtls.md
 
         assert.are.equals('80070713463e7749b90c2dc24911e275',

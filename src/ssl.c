@@ -2,9 +2,10 @@
 
 #include "mbedtls/debug.h"
 
-static void lmbedtls_debug(void *ctx, int level,
-                      const char *file, int line,
-                      const char *str )
+static void
+lmbedtls_debug(void *ctx, int level,
+               const char *file, int line,
+               const char *str )
 {
     ((void) ctx);
     ((void) level);
@@ -13,7 +14,8 @@ static void lmbedtls_debug(void *ctx, int level,
     fflush(  (FILE *) ctx  );
 }
 
-static int lmbedtls_pushsslresult(lua_State *L, int ret)
+static int
+lmbedtls_pushsslresult(lua_State *L, int ret)
 {
     if (ret>0)
     {
@@ -26,31 +28,36 @@ static int lmbedtls_pushsslresult(lua_State *L, int ret)
         return 1;
     }
 
-    switch(ret)
+    switch (ret)
     {
         case MBEDTLS_ERR_SSL_WANT_READ:
             lua_pushboolean(L, 0);
             lua_pushliteral(L, "WANT_READ");
             return 2;
+
         case MBEDTLS_ERR_SSL_WANT_WRITE:
             lua_pushboolean(L, 0);
             lua_pushliteral(L, "WANT_WRITE");
             return 2;
+
         case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
             lua_pushboolean(L, 0);
             lua_pushliteral(L, "IN_PROCESS_ASYNC");
             return 2;
+
         case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
             lua_pushboolean(L, 0);
             lua_pushliteral(L, "IN_PROCESS_CRYPTO");
             return 2;
+
         default:
             break;
     }
     return mbedtls_pusherror(L, ret);
 }
 
-static int lmbedtls_ssl_conf_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *flags)
+static int
+lmbedtls_ssl_conf_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *flags)
 {
     int ret;
     mbedtls_ssl_config *conf = (mbedtls_ssl_config *)ctx;
@@ -61,7 +68,7 @@ static int lmbedtls_ssl_conf_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int dept
 
     lua_pushlightuserdata(L, lmbedtls_ssl_conf_crt_vrfy);
     lua_rawget(L, -2);
-    lua_pushlstring(L, (const char*)crt->raw.p, crt->raw.len);
+    lua_pushlstring(L, (const char *)crt->raw.p, crt->raw.len);
     lua_pushinteger(L, depth);
 
     ret = lua_pcall(L, 2, 1, 0);
@@ -302,14 +309,17 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
         luaL_argcheck(L, lua_type(L, 3)==LUA_TTABLE, 3, "should be array contains ciphersuite");
 
         n = lua_rawlen(L, 3);
-        cip = (int*)mbedtls_calloc(n+1, sizeof(int));
+        cip = (int *)mbedtls_calloc(n+1, sizeof(int));
         memset(cip, 0, (n+1)*sizeof(int));
 
-        for (i=1, pi=cip; i<=n; i++)
+        for (i = 1, pi = cip; i<=n; i++)
         {
             lua_rawgeti(L, 3, i);
             *pi = mbedtls_ssl_get_ciphersuite_id(lua_tostring(L, -1));
-            if (*pi) pi++;
+            if (*pi)
+            {
+                pi++;
+            }
         }
         lua_pushlightuserdata(L, conf);
         lua_rawget(L, LUA_REGISTRYINDEX);
@@ -317,7 +327,10 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
         lua_pushliteral(L, "ciphersuites");
         lua_rawget(L, -2);
         p = lua_touserdata(L, -1);
-        if (p) mbedtls_free(p);
+        if (p)
+        {
+            mbedtls_free(p);
+        }
         lua_pop(L, 1);
 
         lua_pushliteral(L, "ciphersuites");
@@ -351,13 +364,13 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
 
         lua_pushlightuserdata(L, conf);
         lua_rawget(L, LUA_REGISTRYINDEX);
-        if(chains)
+        if (chains)
         {
             lua_pushlightuserdata(L, chains);
             lua_pushvalue(L, 3);
             lua_rawset(L, -3);
         }
-        if(ca_crl)
+        if (ca_crl)
         {
             lua_pushlightuserdata(L, ca_crl);
             lua_pushvalue(L, 4);
@@ -373,13 +386,13 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
 
         lua_pushlightuserdata(L, conf);
         lua_rawget(L, LUA_REGISTRYINDEX);
-        if(own_cert)
+        if (own_cert)
         {
             lua_pushlightuserdata(L, own_cert);
             lua_pushvalue(L, 3);
             lua_rawset(L, -3);
         }
-        if(pk_key)
+        if (pk_key)
         {
             lua_pushlightuserdata(L, pk_key);
             lua_pushvalue(L, 4);
@@ -531,7 +544,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
         mbedtls_ssl_conf_renegotiation_period(conf, data);
     }
 #endif /* if defined(MBEDTLS_SSL_RENEGOTIATION) */
-    else if ( strstr(key, "cntls") || strstr(key, "CNTLS") )
+    else if (strstr(key, "cntls") || strstr(key, "CNTLS") )
     {
         ret = mbedtls_ssl_config_cntls(conf);
     }
@@ -569,7 +582,10 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_gc)
     lua_pushliteral(L, "ciphersuites");
     lua_rawget(L, -2);
     p = lua_touserdata(L, -1);
-    if (p) mbedtls_free(p);
+    if (p)
+    {
+        mbedtls_free(p);
+    }
     lua_pop(L, 2);
 
     lua_pushlightuserdata(L, conf);
@@ -602,7 +618,7 @@ static LUA_FUNCTION(lmbedtls_ssl_ciphersuites)
     const int *cip = mbedtls_ssl_list_ciphersuites();
 
     lua_newtable(L);
-    for(i=1; cip; i++, cip++)
+    for (i = 1; cip; i++, cip++)
     {
         lua_pushstring(L, mbedtls_ssl_get_ciphersuite_name(*cip));
         lua_rawseti(L, -2, i);
@@ -643,7 +659,7 @@ static LUA_FUNCTION(lmbedtls_ssl_setup)
     }
     lua_pushlightuserdata(L, ssl);
     lua_rawget(L, LUA_REGISTRYINDEX);
-    lua_pushlightuserdata(L, (void*)conf);
+    lua_pushlightuserdata(L, (void *)conf);
     lua_pushvalue(L, 2);
     lua_rawset(L, -3);
     lua_pop(L, 1);
@@ -661,7 +677,7 @@ static LUA_FUNCTION(lmbedtls_ssl_reset)
     {
         mbedtls_pusherror(L, ret);
     }
-    //FIXME: shoud clear somethings
+    /*FIXME: shoud clear somethings */
 
     lua_pushvalue(L, 1);
     return 1;
@@ -714,7 +730,7 @@ static LUA_FUNCTION(lmbedtls_ssl_get)
         const mbedtls_x509_crt *peer = mbedtls_ssl_get_peer_cert(ssl);
         if (peer)
         {
-            lua_pushlstring(L, (const char*)peer->raw.p, peer->raw.len);
+            lua_pushlstring(L, (const char *)peer->raw.p, peer->raw.len);
         }
         else
         {
@@ -787,7 +803,8 @@ static LUA_FUNCTION(lmbedtls_ssl_get)
 
 const static int bio_ctx;
 
-static int lmbedtls_ssl_send(void *ctx, const unsigned char *buf, size_t len)
+static int
+lmbedtls_ssl_send(void *ctx, const unsigned char *buf, size_t len)
 {
     int ret;
     mbedtls_ssl_context *ssl = (mbedtls_ssl_context *)ctx;
@@ -799,10 +816,10 @@ static int lmbedtls_ssl_send(void *ctx, const unsigned char *buf, size_t len)
     lua_pushlightuserdata(L, lmbedtls_ssl_send);
     lua_rawget(L, -2);
 
-    lua_pushlightuserdata(L, (void*)&bio_ctx);
+    lua_pushlightuserdata(L, (void *)&bio_ctx);
     lua_rawget(L, -3);
 
-    lua_pushlstring(L, (const char*)buf, len);
+    lua_pushlstring(L, (const char *)buf, len);
 
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
@@ -820,7 +837,8 @@ static int lmbedtls_ssl_send(void *ctx, const unsigned char *buf, size_t len)
     return ret;
 
 }
-static int lmbedtls_ssl_recv(void *ctx, unsigned char *buf, size_t len)
+static int
+lmbedtls_ssl_recv(void *ctx, unsigned char *buf, size_t len)
 {
     int ret;
     mbedtls_ssl_context *ssl = (mbedtls_ssl_context *)ctx;
@@ -832,7 +850,7 @@ static int lmbedtls_ssl_recv(void *ctx, unsigned char *buf, size_t len)
     lua_pushlightuserdata(L, lmbedtls_ssl_recv);
     lua_rawget(L, -2);
 
-    lua_pushlightuserdata(L, (void*)&bio_ctx);
+    lua_pushlightuserdata(L, (void *)&bio_ctx);
     lua_rawget(L, -3);
 
     lua_pushinteger(L, len);
@@ -862,8 +880,9 @@ static int lmbedtls_ssl_recv(void *ctx, unsigned char *buf, size_t len)
     return ret;
 
 }
-static int lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
-                                     uint32_t timeout)
+static int
+lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
+                          uint32_t timeout)
 {
     int ret;
     mbedtls_ssl_context *ssl = (mbedtls_ssl_context *)ctx;
@@ -872,10 +891,10 @@ static int lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
     lua_pushlightuserdata(L, ssl);
     lua_rawget(L, LUA_REGISTRYINDEX);
 
-    lua_pushlightuserdata(L, lmbedtls_ssl_recv);
+    lua_pushlightuserdata(L, lmbedtls_ssl_recv_timeout);
     lua_rawget(L, -2);
 
-    lua_pushlightuserdata(L, (void*)&bio_ctx);
+    lua_pushlightuserdata(L, (void *)&bio_ctx);
     lua_rawget(L, -3);
 
     lua_pushinteger(L, len);
@@ -887,7 +906,6 @@ static int lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
         mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
                                 "%s", lua_tostring(L, -1));
         ret = MBEDTLS_ERR_NET_RECV_FAILED;
-
     }
     else
     {
@@ -904,10 +922,11 @@ static int lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
 
     lua_pop(L, 2);
 
-    return len;
+    return ret;
 }
 
-static int lmbedtls_ssl_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *flags)
+static int
+lmbedtls_ssl_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *flags)
 {
     int ret;
     mbedtls_ssl_context *ssl = (mbedtls_ssl_context *)ctx;
@@ -918,7 +937,7 @@ static int lmbedtls_ssl_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, ui
 
     lua_pushlightuserdata(L, lmbedtls_ssl_crt_vrfy);
     lua_rawget(L, -2);
-    lua_pushlstring(L, (const char*)crt->raw.p, crt->raw.len);
+    lua_pushlstring(L, (const char *)crt->raw.p, crt->raw.len);
     lua_pushinteger(L, depth);
 
     ret = lua_pcall(L, 2, 1, 0);
@@ -949,9 +968,9 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
         if (net)
         {
             mbedtls_ssl_set_bio(ssl, net,
-                    mbedtls_net_send,
-                    mbedtls_net_recv,
-                    mbedtls_net_recv_timeout);
+                                mbedtls_net_send,
+                                mbedtls_net_recv,
+                                mbedtls_net_recv_timeout);
 
             lua_pushlightuserdata(L, ssl);
             lua_rawget(L, LUA_REGISTRYINDEX);
@@ -959,18 +978,22 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
             lua_pushvalue(L, 3);
             lua_rawset(L, -3);
             lua_pop(L, 1);
-        } else
+        }
+        else
         {
             luaL_argcheck(L, !lua_isnoneornil(L, 3), 3, "must not be none or nil");
             luaL_argcheck(L, lua_isfunction(L, 4), 4, "must be function");
-            luaL_argcheck(L, lua_isfunction(L, 5), 5, "must be function");
+            luaL_argcheck(L, lua_isnoneornil(L, 5) || lua_isfunction(L, 5),
+                          5, "must be function or nil");
             luaL_argcheck(L, lua_isnoneornil(L, 6) || lua_isfunction(L, 6),
                           6, "must be function or nil");
+            luaL_argcheck(L, lua_isfunction(L, 5) || lua_isfunction(L, 6),
+                          6, "must set recv or recv_timeout callback function");
 
             lua_pushlightuserdata(L, ssl);
             lua_rawget(L, LUA_REGISTRYINDEX);
 
-            lua_pushlightuserdata(L, (void*)&bio_ctx);
+            lua_pushlightuserdata(L, (void *)&bio_ctx);
             lua_pushvalue(L, 3);
             lua_rawset(L, -3);
 
@@ -989,13 +1012,12 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
             lua_pop(L, 1);
 
             mbedtls_ssl_set_bio(ssl, ssl,
-                    lmbedtls_ssl_send,
-                    lmbedtls_ssl_recv,
-                    lua_isnoneornil(L, 6) ? NULL : lmbedtls_ssl_recv_timeout);
+                                lmbedtls_ssl_send,
+                                lua_isnoneornil(L, 5) ? NULL : lmbedtls_ssl_recv,
+                                lua_isnoneornil(L, 6) ? NULL : lmbedtls_ssl_recv_timeout);
         }
     }
-    else
-    if (strcasecmp("key", "timer")==0)
+    else if (strcasecmp("key", "timer")==0)
     {
 /*
  * typedef void mbedtls_ssl_set_timer_t(void * ctx,
@@ -1124,8 +1146,7 @@ static LUA_FUNCTION(lmbedtls_ssl_check_record)
 static LUA_FUNCTION(lmbedtls_ssl_check_pending)
 {
     mbedtls_ssl_context *ssl = luaL_checkudata(L, 1, LMBEDTLS_SSL_MT);
-    int pending = mbedtls_ssl_check_pending(ssl);
-    lua_pushinteger(L, pending);
+    lua_pushboolean(L, mbedtls_ssl_check_pending(ssl));
     return 1;
 }
 
@@ -1249,6 +1270,13 @@ static LUA_FUNCTION(lmbedtls_ssl_close_notify)
     return 1;
 }
 
+static LUA_FUNCTION(lmbedtls_ssl_is_handshake_over)
+{
+    mbedtls_ssl_context *ssl = luaL_checkudata(L, 1, LMBEDTLS_SSL_MT);
+    lua_pushboolean(L, mbedtls_ssl_is_handshake_over(ssl));
+    return 1;
+}
+
 static LUA_FUNCTION(lmbedtls_ssl_gc)
 {
     mbedtls_ssl_context *ssl = luaL_checkudata(L, 1, LMBEDTLS_SSL_MT);
@@ -1260,21 +1288,19 @@ static LUA_FUNCTION(lmbedtls_ssl_gc)
 
 static luaL_Reg ssl_methods[] =
 {
-    {"setup",        lmbedtls_ssl_setup},
-    {"reset",        lmbedtls_ssl_reset},
-    {"get",          lmbedtls_ssl_get},
-    {"set",          lmbedtls_ssl_set},
-    {"check_record", lmbedtls_ssl_check_record},
-    {"check_pending",lmbedtls_ssl_check_pending},
-    {"handshake",    lmbedtls_ssl_handshake},
-    {"renegotiate",  lmbedtls_ssl_renegotiate},
-    {"read",         lmbedtls_ssl_read},
-    {"write",        lmbedtls_ssl_write},
-    {
-        "send_alert_message",
-        lmbedtls_ssl_send_alert_message
-    },
-    {"close_notify", lmbedtls_ssl_close_notify},
+    {"setup",               lmbedtls_ssl_setup},
+    {"reset",               lmbedtls_ssl_reset},
+    {"get",                 lmbedtls_ssl_get},
+    {"set",                 lmbedtls_ssl_set},
+    {"check_record",        lmbedtls_ssl_check_record},
+    {"check_pending",       lmbedtls_ssl_check_pending},
+    {"handshake",           lmbedtls_ssl_handshake},
+    {"renegotiate",         lmbedtls_ssl_renegotiate},
+    {"read",                lmbedtls_ssl_read},
+    {"write",               lmbedtls_ssl_write},
+    {"is_handshake_over",   lmbedtls_ssl_is_handshake_over},
+    {"send_alert_message",  lmbedtls_ssl_send_alert_message},
+    {"close_notify",        lmbedtls_ssl_close_notify},
 
     {NULL, NULL}
 };
@@ -1304,5 +1330,17 @@ luaopen_mbedtls_ssl(lua_State *L)
     mbedtls_register(L, LMBEDTLS_SSL_MT, ssl_meta, ssl_methods);
 
     luaL_newlib(L, ssl_libs);
+
+#define PUSH_ENUM(x)                        \
+    lua_pushstring(L, #x);                  \
+    lua_pushinteger(L, MBEDTLS_ERR_SSL_ ## x); \
+    lua_rawset(L, -3)
+
+    PUSH_ENUM(WANT_READ);
+    PUSH_ENUM(WANT_WRITE);
+    PUSH_ENUM(TIMEOUT);
+
+#undef PUSH_ENUM
+
     return 1;
 }

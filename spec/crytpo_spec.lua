@@ -12,7 +12,7 @@ describe("mbedtls crypto tests", function()
 
         describe("hash tests", function()
             for i = 1, #algs do
-                describe(algs[i], function()
+                it(algs[i], function()
                     local obj = md.new(algs[i])
                     obj:update(msg:sub(1, 1))
                     obj:update(msg:sub(2))
@@ -33,7 +33,7 @@ describe("mbedtls crypto tests", function()
 
         describe("hmac tests", function()
             for i = 1, #algs do
-                describe(algs[i], function()
+                it(algs[i], function()
                     local obj = md.new(algs[i], "key")
                     obj:update(msg:sub(1, 1))
                     obj:update(msg:sub(2))
@@ -64,7 +64,7 @@ describe("mbedtls crypto tests", function()
                 (algs[i]:match("AES") or algs[i]:match("SM4"))
                 and (algs[i]:match("-CBC$") or algs[i]:match("-ECB$"))
             then
-                describe(algs[i], function()
+                it(algs[i], function()
                     local obj = cipher.new(algs[i])
                     local kl, bl = assert(obj:get("keylen")), assert(obj:get("blocksize"))
                     local key = mbedtls.random(kl)
