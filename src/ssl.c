@@ -2,6 +2,8 @@
 
 #include "mbedtls/debug.h"
 
+const char *const authmode_lst[] = {"none", "optional", "required", "unset", NULL};
+
 static void
 lmbedtls_debug(void *ctx, int level,
                const char *file, int line,
@@ -98,8 +100,7 @@ static LUA_FUNCTION(lmbedtls_session_new)
 
     mbedtls_ssl_session_init(session);
 
-    luaL_getmetatable(L, LMBEDTLS_SSL_SESSION_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_SSL_SESSION_MT, NULL);
     return 1;
 }
 
@@ -197,14 +198,9 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_new)
         return mbedtls_pusherror(L, ret);
     }
 
-    lua_pushlightuserdata(L, conf);
-    lua_newtable(L);
-    lua_rawset(L, LUA_REGISTRYINDEX);
-
     mbedtls_ssl_conf_set_user_data_p(conf, L);
 
-    luaL_getmetatable(L, LMBEDTLS_SSL_CONFIG_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_SSL_CONFIG_MT, conf);
     return 1;
 }
 
@@ -234,8 +230,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
     }
     else if (strcasecmp(key, "authmode")==0)
     {
-        const char *const lst[] = {"none", "optional", "required", "unset", NULL};
-        int authmode = luaL_checkoption(L, 3, NULL, lst);
+        int authmode = luaL_checkoption(L, 3, NULL, authmode_lst);
         mbedtls_ssl_conf_authmode(conf, authmode);
     }
     else if (strcasecmp(key, "rng")==0)
@@ -637,12 +632,8 @@ static LUA_FUNCTION(lmbedtls_ssl_new)
     mbedtls_ssl_init(ssl);
 
     mbedtls_ssl_set_user_data_p(ssl, L);
-    lua_pushlightuserdata(L, ssl);
-    lua_newtable(L);
-    lua_rawset(L, LUA_REGISTRYINDEX);
 
-    luaL_getmetatable(L, LMBEDTLS_SSL_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_SSL_MT, ssl);
     return 1;
 }
 
@@ -754,8 +745,7 @@ static LUA_FUNCTION(lmbedtls_ssl_get)
             return mbedtls_pusherror(L, ret);
         }
 
-        luaL_getmetatable(L, LMBEDTLS_SSL_SESSION_MT);
-        lua_setmetatable(L, -2);
+        mbedtls_setmetatable(L, -1, LMBEDTLS_SSL_SESSION_MT, NULL);
         return 1;
     }
     else
@@ -797,7 +787,14 @@ static LUA_FUNCTION(lmbedtls_ssl_get)
     else
 #endif
 #endif
-    {return 0;}
+    {
+        lua_pushlightuserdata(L, ssl);
+        lua_rawget(L, LUA_REGISTRYINDEX);
+        lua_pushstring(L, key);
+        lua_rawget(L, -2);
+
+        return 1;
+    }
     return mbedtls_pusherror(L, ret);
 }
 
@@ -1113,8 +1110,18 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
     }
     else if (strcasecmp(key, "hs_authmode")==0)
     {
-        int authmode = 0;
+        int authmode = luaL_checkoption(L, 3, NULL, authmode_lst);
         mbedtls_ssl_set_hs_authmode(ssl, authmode);
+        ret = 0;
+    } else {
+        lua_pushlightuserdata(L, ssl);
+        lua_rawget(L, LUA_REGISTRYINDEX);
+
+        lua_pushstring(L, key);
+        lua_pushvalue(L, 3);
+        lua_rawset(L, -3);
+
+        lua_pop(L, 1);
         ret = 0;
     }
 
@@ -1286,6 +1293,31 @@ static LUA_FUNCTION(lmbedtls_ssl_gc)
     return 0;
 }
 
+static LUA_FUNCTION(lmbedtls_ssl_debug_print_msg)
+{
+    mbedtls_ssl_context *ssl = luaL_checkudata(L, 1, LMBEDTLS_SSL_MT);
+
+#if defined(MBEDTLS_DEBUG_C)
+    const char *const lst[] = {
+        "none", "error", "warning", "info", "verbose", NULL
+    };
+    int lvl = luaL_checkoption(L, 2, "debug", lst);
+    lua_Debug ar;
+    const char* file = __FILE__;
+    int line = __LINE__;
+
+    if(lua_getstack (L, 1, &ar)==1 )
+    {
+        lua_getinfo(L, "Sl", &ar);
+        file = ar.short_src;
+        line = ar.currentline;
+    }
+
+    mbedtls_debug_print_msg( ssl,  lvl, file, line, "%s", lua_tostring(L, 3));
+#endif
+    return 0;
+}
+
 static luaL_Reg ssl_methods[] =
 {
     {"setup",               lmbedtls_ssl_setup},
@@ -1301,6 +1333,7 @@ static luaL_Reg ssl_methods[] =
     {"is_handshake_over",   lmbedtls_ssl_is_handshake_over},
     {"send_alert_message",  lmbedtls_ssl_send_alert_message},
     {"close_notify",        lmbedtls_ssl_close_notify},
+    {"debug_print",         lmbedtls_ssl_debug_print_msg},
 
     {NULL, NULL}
 };
@@ -1339,6 +1372,8 @@ luaopen_mbedtls_ssl(lua_State *L)
     PUSH_ENUM(WANT_READ);
     PUSH_ENUM(WANT_WRITE);
     PUSH_ENUM(TIMEOUT);
+    PUSH_ENUM(CONN_EOF);
+    PUSH_ENUM(PEER_CLOSE_NOTIFY);
 
 #undef PUSH_ENUM
 

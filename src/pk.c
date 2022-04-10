@@ -383,8 +383,7 @@ static LUA_FUNCTION(lmbedtls_pk_new)
         }
     }
 
-    luaL_getmetatable(L, LMBEDTLS_PK_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_PK_MT, NULL);
     return 1;
 }
 

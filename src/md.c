@@ -88,8 +88,7 @@ static LUA_FUNCTION(lmbedtls_md_clone)
         return mbedtls_pusherror(L, ret);
     }
 
-    luaL_getmetatable(L, LMBEDTLS_MD_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_MD_MT, NULL);
     return 1;
 }
 
@@ -138,12 +137,13 @@ static LUA_FUNCTION(lmbedtls_md_new)
         return mbedtls_pusherror(L, ret);
     }
 
+
+    mbedtls_setmetatable(L, -1, LMBEDTLS_MD_MT, NULL);
+
     lua_pushlightuserdata(L, md);
     lua_pushboolean(L, key!=NULL);
     lua_rawset(L, LUA_REGISTRYINDEX);
 
-    luaL_getmetatable(L, LMBEDTLS_MD_MT);
-    lua_setmetatable(L, -2);
     return 1;
 }
 

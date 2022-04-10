@@ -38,6 +38,49 @@ extern const char *const proto_lst[];
 extern const char *const event_lst[];
 extern const char *const switch_lst[];
 
+static inline int mbedtls_newindex(lua_State *L)
+{
+    void *ud = lua_touserdata(L, 1);
+    luaL_checkany(L, 3);
+
+    lua_rawgetp(L, LUA_REGISTRYINDEX, ud);
+    if (lua_istable(L, -1))
+    {
+        lua_pushvalue(L, 2);
+        lua_pushvalue(L, 3);
+        lua_rawset(L, -3);
+    } else
+        luaL_argerror(L, 1, "not support assign field value");
+
+    lua_pop(L, 1);
+
+    return 0;
+}
+
+static inline int mbedtls_index(lua_State *L)
+{
+    void *ud = lua_touserdata(L, 1);
+    luaL_checkany(L, 2);
+
+    lua_rawgetp(L, LUA_REGISTRYINDEX, ud);
+    if (lua_istable(L, -1))
+    {
+        lua_pushvalue(L, 2);
+        lua_rawget(L, -2);
+
+        if (!lua_isnil(L, -1))
+            return 1;
+
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+
+    lua_getmetatable(L, 1);
+    lua_pushvalue(L, 2);
+    lua_rawget(L, -2);
+    return 1;
+}
+
 static inline int mbedtls_register(lua_State *L, const char *tname,
                                    struct luaL_Reg metamethods[],
                                    struct luaL_Reg methods[]) {
@@ -48,13 +91,33 @@ static inline int mbedtls_register(lua_State *L, const char *tname,
   lua_pushstring(L, tname);
   lua_rawset(L, -3);
 
-  lua_pushliteral(L, "__index");
-  lua_newtable(L);
-  luaL_setfuncs(L, methods, 0);
+  lua_pushliteral(L, "__newindex");
+  lua_pushcfunction(L, mbedtls_newindex);
   lua_rawset(L, -3);
+
+  lua_pushliteral(L, "__index");
+  lua_pushcfunction(L, mbedtls_index);
+  lua_rawset(L, -3);
+
+  luaL_setfuncs(L, methods, 0);
 
   lua_pop(L, 1);
   return 0;
+}
+
+static inline int mbedtls_setmetatable(lua_State *L, int idx, const char *tname, void* ud)
+{
+    idx = lua_absindex(L, idx);
+    luaL_getmetatable(L, tname);
+    lua_setmetatable(L, idx);
+
+    if (ud)
+    {
+        lua_newtable(L);
+        lua_rawsetp(L, LUA_REGISTRYINDEX, ud);
+    }
+
+    return 0;
 }
 
 static inline int mbedtls_pusherror(lua_State *L, int err) {

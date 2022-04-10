@@ -161,8 +161,7 @@ LUA_FUNCTION(lmbedtls_rng_new)
         return mbedtls_pusherror(L, ret);
     }
 
-    luaL_getmetatable(L, LMBEDTLS_RNG_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_RNG_MT, NULL);
     return 1;
 }
 

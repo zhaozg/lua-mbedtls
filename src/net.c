@@ -10,8 +10,7 @@ static LUA_FUNCTION(lmbedtls_net_new)
     }
 
     mbedtls_net_init(net);
-    luaL_getmetatable(L, LMBEDTLS_NET_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_NET_MT, NULL);
     return 1;
 }
 
@@ -68,8 +67,7 @@ static LUA_FUNCTION(lmbedtls_net_accept)
         return mbedtls_pusherror(L, ret);
     }
 
-    luaL_getmetatable(L, LMBEDTLS_NET_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_NET_MT, NULL);
 
     lua_pushlstring(L, ip, iplen);
 

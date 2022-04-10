@@ -392,8 +392,7 @@ static LUA_FUNCTION(lmbedtls_cipher_new)
         return mbedtls_pusherror(L, ret);
     }
 
-    luaL_getmetatable(L, LMBEDTLS_CIPHER_MT);
-    lua_setmetatable(L, -2);
+    mbedtls_setmetatable(L, -1, LMBEDTLS_CIPHER_MT, NULL);
     return 1;
 }
 

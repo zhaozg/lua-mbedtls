@@ -39,6 +39,10 @@ static inline void *luaL_testudata (lua_State *L, int i, const char *tname) {
   (lua_pushcfunction(L, func), lua_pushlightuserdata(L, arg),                  \
    lua_pcall(L, 1, 0, 0))
 
+static inline int lua_absindex (lua_State *L, int idx) {
+    return idx < 0 ? lua_gettop(L) + 1 + idx : idx;
+}
+
 #endif
 
 #endif /* LMBEDTLS_COMPAT_H */

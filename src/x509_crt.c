@@ -226,9 +226,7 @@ static LUA_FUNCTION(lmbedtls_crt_new)
 
     mbedtls_x509_crt_init(crt);
 
-    luaL_getmetatable(L, LMBEDTLS_X509_CRT_MT);
-    lua_setmetatable(L, -2);
-
+    mbedtls_setmetatable(L, -1, LMBEDTLS_X509_CRT_MT, NULL);
     return 1;
 }
 
