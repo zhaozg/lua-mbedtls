@@ -108,24 +108,7 @@ describe("mbedtls tls tests", function()
             return
         end
 
-        local host, port = "127.0.0.1", 9527
-
-        local uvsrv = uv.new_tcp()
-        local uvcli = uv.new_tcp()
-
-        local to_srv, to_cli = {}, {}
-        local srv = assert(ssl.ssl_new(srv_conf))
-        local cli = assert(ssl.ssl_new(cli_conf))
-
-        assert(srv:setup(srv_conf))
-        assert(cli:setup(cli_conf))
-
-        local handshake = {
-            client = false,
-            server = false
-        }
-
-        local function next_loop(handle, timeout)
+        local function delay_run(handle, timeout)
             timeout = timeout or 0
             local timer = uv.new_timer()
             timer:start(timeout, 0, function()
@@ -135,180 +118,143 @@ describe("mbedtls tls tests", function()
             end)
         end
 
-        local close = function(stream, err, mode)
-            if err == "close" then
-                srv:close_notify()
-                cli:close_notify()
-                return
-            end
-
-            ssl.eof = true
-            if tostring(stream):match("tcp") then
-                ssl:debug_print("verbose", string.format("%s CLOSE", stream))
-                stream:read_stop()
-                stream:close()
-
-                return
-            end
-
-            if mode=='server' then
-                uvsrv:read_stop()
-                uvsrv:close(function()
-                    uv.stop()
-                end)
-                return
-            end
+        local function handshake(obj, onSecure)
+            local check = uv.new_check()
+            check:start(function()
+                obj:handshake()
+                if obj:is_handshake_over() then
+                    check:stop()
+                    check:close()
+                    onSecure()
+                    obj.check = nil
+                end
+            end)
+            obj.check = check
         end
 
-        local is_error = function(ret, msg)
-            if ret == nil then
-                return true
-            end
-
-            if ret == false and not (msg:match("^WANT") or msg:match("^IN_PROCESS")) then
-                return true
-            end
-            return false
-        end
-        local handle_ssl
-        handle_ssl = function(ssl, mode)
-            ssl:debug_print("verbose", string.format("*** %s %s", ssl, mode))
-            if ssl:is_handshake_over() then
-                if mode == "client" and not ssl.requested then
-                    ssl:write(data.HTTP_REQUEST)
-                    ssl:debug_print("verbose", string.format("client write"))
-                    ssl.requested = true
-                    return
-                end
-
-                local msg, err = ssl:read()
-                if is_error(msg, err) then
-                    return close(stream, err, mode)
-                end
-
-                if mode == "client" then
-                    if msg == data.HTTP_RESPONSE then
-                        ssl:debug_print("verbose", string.format("MSG: %s", msg))
-                        return close(stream, "close", mode)
-                    end
-                else
-                    if msg == data.HTTP_REQUEST then
-                        local n = ssl:write(data.HTTP_RESPONSE)
-                        assert(n==#data.HTTP_RESPONSE);
-                    end
-                end
-            else
-                local bs, ms, bc = ssl:handshake(true)
-                if ms and ms:match("WANT") then
-                    bs, ms, bc = ssl:handshake(true)
-                end
-                handshake[mode] = true
-                if is_error(bs, ms) then
-                    return close(stream, ms, mode)
-                end
-            end
-        end
-
-        local function handle_net(ssl, stream, queue, mode)
+        local function handle_ssl(obj, stream, onSecure, onData)
+            obj.queue = {}
+            local code
 
             -- 将来自网络的数据加密到 SSL 输入队列
-            stream:read_start(function(err, data)
+            stream:read_start(function(err, msg)
                 if err then
-                    return close(stream, err, mode)
+                    return onData(stream, err, msg)
                 end
 
-                if data == nil then
-                    close(stream, "EOF", mode)
-                    return
+                if msg then
+                    obj.queue[#obj.queue + 1] = msg
                 end
 
-                queue[#queue + 1] = data
-
-
-                next_loop(function()
-                    handle_ssl(ssl, mode)
+                delay_run(function()
+                    repeat
+                        msg, err, code = obj:read()
+                        if msg then
+                            onData(stream, err, msg, code)
+                        elseif msg == nil or not (err:match("^WANT") or err:match("^IN_PROCESS")) then
+                            onData(stream, err, msg, code)
+                        end
+                    until not obj:check_pending()
                 end)
             end)
 
-            assert(ssl:set(
-                "bio",
-                stream,
-                function(s, msg)
-                    -- SSL 输出通信数据密文, 无需后续处理
-                    ssl:debug_print("verbose", string.format(mode.."\t--SSL 输出通信数据密文"))
-                    ssl:debug_print("verbose", string.format(">>>\t"..mbedtls.hex(msg)))
-                    s:write(msg)
-                    next_loop(function()
-                        handle_ssl(ssl, mode)
-                    end)
-                    return #msg
-                end,
-
-                nil,
-
-                function(x, len, timeout)
-                    -- SSL 读取通讯数据密文, 激活 SSL 处理
-                    ssl:debug_print("verbose", string.format(mode.."\t-- SSL 读取通讯数据密文"))
-                    if #queue > 0 then
-                        local msg = table.remove(queue, 1)
-                        if #msg > len then
-                            local last = msg:sub(len + 1, -1)
-                            table.insert(queue, 1, last)
-                            msg = msg:sub(1, len)
-                        end
-                        if #msg > 0 then
-                            ssl:debug_print("verbose", string.format("<<<\t"..mbedtls.hex(msg)))
-                            next_loop(function()
-                                handle_ssl(ssl, mode)
-                            end)
-                            return msg
-                        end
+            assert(obj:set("bio", stream, function(s, msg)
+                -- SSL 输出通信数据密文, 无需后续处理
+                s:write(msg)
+                return #msg
+            end, function(_, len)
+                -- SSL 读取通讯数据密文, 激活 SSL 处理
+                if #obj.queue > 0 then
+                    local queue = obj.queue
+                    local msg = table.remove(queue, 1)
+                    if #msg > len then
+                        local last = msg:sub(len + 1, -1)
+                        table.insert(queue, 1, last)
+                        msg = msg:sub(1, len)
                     end
 
-                    if mode=='server' and not cli:is_handshake_over() then
-                        -- 强制发起客户端握手协商
-                        next_loop(function()
-                            handle_ssl(cli, "client")
+                    if #queue > 0 then
+                        delay_run(function()
+                            obj:check_pending()
                         end)
                     end
-                    if ssl.eof then
-                        return CONN_EOF
-                    end
-                    return WANT_READ
-                end
-            ))
 
-            handle_ssl(ssl, mode)
-            next_loop(function()
-                handle_ssl(ssl, mode)
-            end)
+                    if #msg > 0 then
+                        return msg
+                    end
+                end
+
+                if obj.eof then
+                    onData(stream, "EOF", nil, ssl.CONF_EOF)
+                    return ssl.CONN_EOF
+                end
+                return ssl.WANT_READ
+            end))
+
+            handshake(obj, onSecure)
         end
 
-        -- WARNING: 确保客户端先发起握手
+        local host, port = "127.0.0.1", 9527
+
+        local uvsrv = uv.new_tcp()
+        local uvcli = uv.new_tcp()
+
+        local srv = assert(ssl.ssl_new(srv_conf))
+        local cli = assert(ssl.ssl_new(cli_conf))
+
+        assert(srv:setup(srv_conf))
+        assert(cli:setup(cli_conf))
+
+        local function onError(tcp, err, code)
+            tcp:read_stop()
+            tcp:close()
+            if not uvsrv:is_closing() then
+                uvsrv:close()
+            end
+        end
+
         assert(uvsrv:bind(host, port))
         uvsrv:listen(128, function(err)
+            assert(not errx, err)
             -- Create socket handle for client
-            local client = uv.new_tcp()
+            local uvcli = uv.new_tcp()
 
             -- Accept incoming connection
-            uvsrv:accept(client)
+            uvsrv:accept(uvcli)
 
-            if handshake.client then
-                handle_net(srv, client, to_srv, "server")
-            else
-                handle_net(cli, uvcli, to_cli, "client")
-                next_loop(function()
-                    handle_net(srv, client, to_srv, "server")
-                end, 100)
-            end
+            srv.request = ""
+            handle_ssl(srv, uvcli, function()
+                -- do some check
+            end, function(stream, err, msg, code)
+                if err then
+                    onError(stream, err, code)
+                    return
+                end
+                srv.request = srv.request .. msg
+                if srv.request:match("\r\n\r\n") then
+                    srv:write(data.HTTP_RESPONSE)
+                    srv:close_notify()
+                    delay_run(function()
+                        onError(stream)
+                    end)
+                end
+            end)
         end)
 
         uvcli:connect(host, port, function(err)
             if err then
-                close(uvcli, err, mode)
+                onError(uvcli, err)
             end
 
-            handle_net(cli, uvcli, to_cli, "client")
+            handle_ssl(cli, uvcli, function(err)
+                assert(cli:write(data.HTTP_REQUEST))
+            end, function(stream, err, msg, code)
+                if err then
+                    onError(stream, err, code)
+                    return
+                end
+                assert.are.equals(data.HTTP_RESPONSE, msg)
+            end)
         end)
 
         uv.run()

@@ -354,7 +354,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
     {
         mbedtls_x509_crt *chains = luaL_checkudata(L, 3, LMBEDTLS_X509_CRT_MT);
         mbedtls_x509_crl *ca_crl = lua_isnone(L, 4) ? NULL
-                               : luaL_checkudata(L, 4, LMBEDTLS_X509_CRL_MT);
+                                 : luaL_checkudata(L, 4, LMBEDTLS_X509_CRL_MT);
         mbedtls_ssl_conf_ca_chain(conf, chains, ca_crl);
 
         lua_pushlightuserdata(L, conf);
@@ -666,9 +666,8 @@ static LUA_FUNCTION(lmbedtls_ssl_reset)
     int ret = mbedtls_ssl_session_reset(ssl);
     if (ret)
     {
-        mbedtls_pusherror(L, ret);
+        return mbedtls_pusherror(L, ret);
     }
-    /*FIXME: shoud clear somethings */
 
     lua_pushvalue(L, 1);
     return 1;
@@ -1113,7 +1112,9 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
         int authmode = luaL_checkoption(L, 3, NULL, authmode_lst);
         mbedtls_ssl_set_hs_authmode(ssl, authmode);
         ret = 0;
-    } else {
+    }
+    else
+    {
         lua_pushlightuserdata(L, ssl);
         lua_rawget(L, LUA_REGISTRYINDEX);
 
@@ -1199,7 +1200,7 @@ static LUA_FUNCTION(lmbedtls_ssl_read)
     mbedtls_ssl_context *ssl = luaL_checkudata(L, 1, LMBEDTLS_SSL_MT);
     unsigned char buf[4096];
     unsigned char *pbuf = buf;
-    size_t len = luaL_optinteger(L, 2, sizeof(buf));
+    size_t len = luaL_optinteger(L, 2, mbedtls_ssl_get_bytes_avail(ssl));
 
     if (len > sizeof(buf))
     {
@@ -1303,10 +1304,10 @@ static LUA_FUNCTION(lmbedtls_ssl_debug_print_msg)
     };
     int lvl = luaL_checkoption(L, 2, "debug", lst);
     lua_Debug ar;
-    const char* file = __FILE__;
+    const char *file = __FILE__;
     int line = __LINE__;
 
-    if(lua_getstack (L, 1, &ar)==1 )
+    if (lua_getstack(L, 1, &ar)==1)
     {
         lua_getinfo(L, "Sl", &ar);
         file = ar.short_src;
