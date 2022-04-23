@@ -51,6 +51,10 @@ lmbedtls_pushsslresult(lua_State *L, int ret)
             lua_pushboolean(L, 0);
             lua_pushliteral(L, "IN_PROCESS_CRYPTO");
             return 2;
+        case MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY:
+            lua_pushboolean(L, 0);
+            lua_pushliteral(L, "CLOSE_NOTIFY");
+            return 2;
 
         default:
             break;
@@ -197,6 +201,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_new)
         mbedtls_ssl_config_free(conf);
         return mbedtls_pusherror(L, ret);
     }
+    mbedtls_ssl_conf_dbg(conf, lmbedtls_debug, stderr);
 
     mbedtls_ssl_conf_set_user_data_p(conf, L);
 
@@ -350,7 +355,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
         /*void mbedtls_ssl_conf_cert_profile(mbedtls_ssl_config *conf, */
         /*                                const mbedtls_x509_crt_profile *profile); */
     }
-    else if (strcasecmp(key, "cert_profile")==0)
+    else if (strcasecmp(key, "ca_chain")==0)
     {
         mbedtls_x509_crt *chains = luaL_checkudata(L, 3, LMBEDTLS_X509_CRT_MT);
         mbedtls_x509_crl *ca_crl = lua_isnone(L, 4) ? NULL
@@ -462,17 +467,15 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
         ret = mbedtls_ssl_conf_srtp_mki_value_supported(conf, support_mki_value);
     }
 #endif
-    else if (strcasecmp(key, "max_version")==0)
+    else if (strcasecmp(key, "max_tls_version")==0)
     {
-        int major = luaL_checkinteger(L, 3);
-        int minor = luaL_checkinteger(L, 4);
-        mbedtls_ssl_conf_max_version(conf, major, minor);
+        int ver = luaL_checkinteger(L, 3);
+        mbedtls_ssl_conf_max_tls_version(conf, ver);
     }
-    else if (strcasecmp(key, "min_version")==0)
+    else if (strcasecmp(key, "min_tls_version")==0)
     {
-        int major = luaL_checkinteger(L, 3);
-        int minor = luaL_checkinteger(L, 4);
-        mbedtls_ssl_conf_min_version(conf, major, minor);
+        int ver = luaL_checkinteger(L, 3);
+        mbedtls_ssl_conf_min_tls_version(conf, ver);
     }
 #if defined(MBEDTLS_SSL_ENCRYPT_THEN_MAC)
     else if (strcasecmp(key, "encrypt_then_mac")==0)
@@ -545,7 +548,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
     }
     else
     {
-        luaL_error(L, "NYI");
+        luaL_error(L, "NYI (%s) not support", key);
     }
 
     if (ret)
@@ -1202,6 +1205,11 @@ static LUA_FUNCTION(lmbedtls_ssl_read)
     unsigned char *pbuf = buf;
     size_t len = luaL_optinteger(L, 2, mbedtls_ssl_get_bytes_avail(ssl));
 
+    if (len == 0)
+    {
+        len = sizeof(buf);
+    }
+
     if (len > sizeof(buf))
     {
         pbuf = mbedtls_calloc(1, len);
@@ -1209,10 +1217,15 @@ static LUA_FUNCTION(lmbedtls_ssl_read)
 
     ret = mbedtls_ssl_read(ssl, pbuf, len);
 
-    if (ret>=0)
+    if (ret>0)
     {
         lua_pushlstring(L, (const char *)pbuf, ret);
         ret = 1;
+    } else if (ret==0)
+    {
+        lua_pushboolean(L, 0);
+        lua_pushliteral(L, "CLOSE_INTERNAL");
+        return 2;
     }
     else
     {
