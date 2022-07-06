@@ -88,8 +88,10 @@ lmbedtls_ssl_conf_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
+#if defined(MBEDTLS_DEBUG_C)
         mbedtls_debug_print_msg(NULL, 1,  __FILE__, __LINE__,
                                 "%s", lua_tostring(L, -1));
+#endif
         ret = MBEDTLS_ERR_X509_FATAL_ERROR;
     }
     else
@@ -831,8 +833,10 @@ lmbedtls_ssl_send(void *ctx, const unsigned char *buf, size_t len)
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
+#if defined(MBEDTLS_DEBUG_C)
         mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
                                 "%s", lua_tostring(L, -1));
+#endif
         ret = MBEDTLS_ERR_NET_SEND_FAILED;
     }
     else
@@ -865,8 +869,10 @@ lmbedtls_ssl_recv(void *ctx, unsigned char *buf, size_t len)
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
+#if defined(MBEDTLS_DEBUG_C)
         mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
                                 "%s", lua_tostring(L, -1));
+#endif
         ret = MBEDTLS_ERR_NET_RECV_FAILED;
     }
     else
@@ -910,8 +916,10 @@ lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
     ret = lua_pcall(L, 3, 1, 0);
     if (ret != LUA_OK)
     {
+#if defined(MBEDTLS_DEBUG_C)
         mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
                                 "%s", lua_tostring(L, -1));
+#endif
         ret = MBEDTLS_ERR_NET_RECV_FAILED;
     }
     else
@@ -950,8 +958,10 @@ lmbedtls_ssl_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *fla
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
+#if defined(MBEDTLS_DEBUG_C)
         mbedtls_debug_print_msg(NULL, 1,  __FILE__, __LINE__,
                                 "%s", lua_tostring(L, -1));
+#endif
         ret = MBEDTLS_ERR_X509_FATAL_ERROR;
     }
     else
@@ -1336,6 +1346,10 @@ static LUA_FUNCTION(lmbedtls_ssl_debug_print_msg)
     }
 
     mbedtls_debug_print_msg( ssl,  lvl, file, line, "%s", lua_tostring(L, 3));
+    lua_pushvalue(L, 1);
+    return 1;
+#else
+    (void)ssl;
 #endif
     return 0;
 }
