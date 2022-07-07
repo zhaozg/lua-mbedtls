@@ -120,8 +120,8 @@ local function create_ssl_conf(rng, protocol)
 
     print("protocol and protocol:match('^cntls')", protocol and protocol:match("^cntls"))
     if protocol and protocol:match("^cntls") then
-        assert(conf:set("min_version", 1, 1))
-        assert(conf:set("max_version", 1, 1))
+        assert(conf:set("min_tls_version", 1, 1))
+        assert(conf:set("max_tls_version", 1, 1))
         assert(conf:set("cntls"))
     end
 

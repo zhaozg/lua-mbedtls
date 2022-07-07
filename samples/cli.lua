@@ -64,8 +64,8 @@ assert(conf:set("dbg"))
 assert(conf:set("authmode", "none"))
 
 if opts.P and opts.P:match("^cntls") then
-    assert(conf:set("min_version", 1, 1))
-    assert(conf:set("max_version", 1, 1))
+    assert(conf:set("min_tls_version", 1, 1))
+    assert(conf:set("max_tls_version", 1, 1))
     assert(conf:set("cntls"))
 end
 
