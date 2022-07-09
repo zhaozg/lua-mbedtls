@@ -14,7 +14,7 @@ local getopt = require("getopt")
 local function usage()
     print([[
 Usage:
-    cli.lua -h hostname -p port -v -?
+    cli.lua -h hostname -p port -u -v -e -?
 
     -h: hostname to connect
     -p: port to connect
@@ -23,10 +23,11 @@ Usage:
     -c: ciphersites of ssl [NYI]
     -P: protocol tls12/tls13/cntls [PART]
     -v: verbose output to debug
+    -e: echo mode
 ]])
 end
 
-for opt, arg in getopt(arg, "h:p:P:uv?", nonoptions) do
+for opt, arg in getopt(arg, "h:p:P:uve?", nonoptions) do
     if opt == "h" then
         opts.h = arg
     elseif opt == "p" then
@@ -38,6 +39,8 @@ for opt, arg in getopt(arg, "h:p:P:uv?", nonoptions) do
     elseif opt == "?" then
         usage()
         os.exit(0)
+    elseif opt == 'e' then
+        opts.e = true
     elseif opt == "v" then
         mbedtls.debug_set_threshold("verbose")
     elseif opt == ":" then
@@ -210,15 +213,24 @@ local function uv_cli(sslc)
 
         handle_ssl(scli, uvcli, function(err)
                 print('onSecure and do REQUEST')
-                assert(scli:write("GET / HTTP/1.0\r\n\r\n"))
+                if opts.e then
+                    local msg = string.rep('x', 5*1024)
+                    scli:write(msg)
+                else
+                    assert(scli:write("GET / HTTP/1.0\r\n\r\n"))
+                end
             end,
             function(stream, err, data, code)
                 if err then
                     onError(stream, err, code)
                     return
                 end
-                print('RESPONSE')
-                print(data)
+                if opts.e then
+                    scli:write(data)
+                else
+                    print('RESPONSE')
+                    print(data)
+                end
             end)
     end)
     uv.run()

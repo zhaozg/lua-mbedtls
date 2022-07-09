@@ -74,10 +74,9 @@ local opts = {
 }
 
 local function usage()
-    print(
-        string.format([[
+    print([[
 Usage:
-    %s -h hostname -p port -v -?
+    ./srv.lua -h hostname -p port -v -?
 
     -h: hostname to bind
     -p: port to bind
@@ -86,12 +85,11 @@ Usage:
     -c: ciphersites of ssl [NYI]
     -P: protocol tls12/tls13/cntls [PART]
     -v: verbose output to debug
-]]),
-        arg[0]
-    )
+    -e: echo
+]])
 end
 
-for opt, arg in getopt(arg, "h:p:P:uv?", nonoptions) do
+for opt, arg in getopt(arg, "h:p:P:uve?", nonoptions) do
     if opt == "h" then
         opts.h = arg
     elseif opt == "p" then
@@ -105,6 +103,8 @@ for opt, arg in getopt(arg, "h:p:P:uv?", nonoptions) do
         os.exit(0)
     elseif opt == "v" then
         mbedtls.debug_set_threshold("verbose")
+    elseif opt == 'e' then
+        opts.e = true
     elseif opt == ":" then
         print("error: missing argument: " .. arg)
         os.exit(1)
@@ -279,8 +279,26 @@ local function uv_srv()
 
     -- make listen port
     local uvsrv = uv.new_tcp()
+    local count = 0
 
     assert(uvsrv:bind(opts.h, tonumber(opts.p)))
+    if opts.e then
+        count = 0
+
+        -- Creating a simple setInterval wrapper
+        local function setInterval(interval, callback)
+          local timer = uv.new_timer()
+          timer:start(interval, interval, function ()
+            callback()
+          end)
+          return timer
+        end
+        setInterval(1000, function()
+            print('Mbps:', count*8/1024/1024 )
+            count = 0
+        end)
+    end
+
     uvsrv:listen(128, function(errx)
         assert(not errx, err)
         -- Create socket handle for client
@@ -302,13 +320,19 @@ local function uv_srv()
                     onError(stream, err, code)
                     return
                 end
-                scli.request = scli.request .. data
-                if scli.request:match("\r\n\r\n") then
-                    scli:write(HTTP_RESPONSE)
-                    scli:close_notify()
-                    delay_run(function()
-                        onError(stream)
-                    end)
+                if opts.e then
+                    -- echo mode
+                    scli:write(data)
+                    count = count + #data
+                else
+                    scli.request = scli.request .. data
+                    if scli.request:match("\r\n\r\n") then
+                        scli:write(HTTP_RESPONSE)
+                        scli:close_notify()
+                        delay_run(function()
+                            onError(stream)
+                        end)
+                    end
                 end
             end)
     end)
