@@ -45,4 +45,8 @@ static inline int lua_absindex (lua_State *L, int idx) {
 
 #endif
 
+#if defined(_MSC_VER)
+#define strcasecmp stricmp
+#endif
+
 #endif /* LMBEDTLS_COMPAT_H */
