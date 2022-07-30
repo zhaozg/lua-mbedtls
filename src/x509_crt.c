@@ -244,6 +244,7 @@ struct luaL_Reg crt_methods[] =
 {
     {"parse",        lmbedtls_crt_parse},
     {"parse_file",   lmbedtls_crt_parse_file},
+    {"parse_path",   lmbedtls_crt_parse_path},
     {"info",         lmbedtls_crt_info},
     {"verify",       lmbedtls_crt_verify},
     {"check_usage",  lmbedtls_crt_check_key_usage},
