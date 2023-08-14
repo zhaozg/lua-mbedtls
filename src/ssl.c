@@ -305,10 +305,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
     {
         uint32_t min = luaL_checkinteger(L, 3);
         uint32_t max = luaL_checkinteger(L, 4);
-        if (min>max)
-        {
-            luaL_error(L, "XXXXX");
-        }
+        luaL_argcheck(L, min <= max, 4, "max value should not less than min");
 
         mbedtls_ssl_conf_handshake_timeout(conf, min, max);
     }
@@ -773,7 +770,7 @@ static LUA_FUNCTION(lmbedtls_ssl_get)
         if (ret==0)
         {
             lua_pushboolean(L, enabled);
-            lua_pushlstring(L, peer_cid, peer_cid_len);
+            lua_pushlstring(L, (const char*)peer_cid, peer_cid_len);
             return 2;
         }
     }
@@ -1051,7 +1048,7 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
     {
         int enable = lua_toboolean(L, 3);
         size_t own_cid_len;
-        unsigned char const *own_cid = luaL_checklstring(L, 4, &own_cid_len);
+        const unsigned char *own_cid = (const unsigned char*)luaL_checklstring(L, 4, &own_cid_len);
         ret = mbedtls_ssl_set_cid(ssl, enable, own_cid, own_cid_len);
     }
     else
@@ -1090,49 +1087,6 @@ static LUA_FUNCTION(lmbedtls_ssl_set)
     {
         const char *hostname = luaL_checkstring(L, 3);
         ret = mbedtls_ssl_set_hostname(ssl, hostname);
-    }
-    else if (strcasecmp(key, "hs_own_cert")==0)
-    {
-        mbedtls_x509_crt *own_cert = luaL_checkudata(L, 3, LMBEDTLS_X509_CRT_MT);
-        mbedtls_pk_context *pk_key = luaL_checkudata(L, 4, LMBEDTLS_PK_MT);
-
-        ret = mbedtls_ssl_set_hs_own_cert(ssl, own_cert, pk_key);
-        if (ret==0)
-        {
-            lua_pushlightuserdata(L, ssl);
-            lua_rawget(L, LUA_REGISTRYINDEX);
-            lua_pushlightuserdata(L, own_cert);
-            lua_pushvalue(L, 3);
-            lua_rawset(L, -3);
-            lua_pushlightuserdata(L, pk_key);
-            lua_pushvalue(L, 4);
-            lua_rawset(L, -3);
-            lua_pop(L, 1);
-        }
-    }
-    else if (strcasecmp(key, "hs_ca_chain")==0)
-    {
-        mbedtls_x509_crt *cachains = luaL_checkudata(L, 3, LMBEDTLS_X509_CRT_MT);
-        mbedtls_x509_crl *cacrl = luaL_checkudata(L, 4, LMBEDTLS_X509_CRL_MT);
-
-        mbedtls_ssl_set_hs_ca_chain(ssl, cachains, cacrl);
-        ret = 0;
-
-        lua_pushlightuserdata(L, ssl);
-        lua_rawget(L, LUA_REGISTRYINDEX);
-        lua_pushlightuserdata(L, cachains);
-        lua_pushvalue(L, 3);
-        lua_rawset(L, -3);
-        lua_pushlightuserdata(L, cacrl);
-        lua_pushvalue(L, 4);
-        lua_rawset(L, -3);
-        lua_pop(L, 1);
-    }
-    else if (strcasecmp(key, "hs_authmode")==0)
-    {
-        int authmode = luaL_checkoption(L, 3, NULL, authmode_lst);
-        mbedtls_ssl_set_hs_authmode(ssl, authmode);
-        ret = 0;
     }
     else
     {

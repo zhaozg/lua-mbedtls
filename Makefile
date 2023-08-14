@@ -147,7 +147,7 @@ info:
 	@echo "PREFIX:" $(PREFIX)
 
 test:	all
-	cd test && LUA_CPATH=$(shell pwd)/?.so $(shell which $(LUA)) test.lua -v && cd ..
+	busted
 
 debug: all
 
