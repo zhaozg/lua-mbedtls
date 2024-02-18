@@ -44,9 +44,10 @@ else
 endif
 
 MBEDTLS_DIR	?= $(HOME)/work/extra/mbedtls
+MBEDTLS_LIBDIR	?= ${MBEDTLS_DIR}/build/library
 #mbedtls auto detect
 mbedtls_CFLAGS	?= -I$(MBEDTLS_DIR)/include
-mbedtls_LIBS	?= -L$(MBEDTLS_DIR)/build/library -lmbedcrypto -lmbedx509 -lmbedtls
+mbedtls_LIBS	?= -L$(MBEDTLS_LIBDIR) -lmbedcrypto -lmbedx509 -lmbedtls
 TARGET  = $(MAKECMDGOALS)
 ifeq (coveralls, ${TARGET})
   CFLAGS	+=-g -fprofile-arcs -ftest-coverage

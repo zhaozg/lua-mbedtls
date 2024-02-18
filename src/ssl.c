@@ -471,7 +471,7 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
     else if (strcasecmp(key, "srtp_mki")==0)
     {
         int support_mki_value = luaL_checkinteger(L, 3);
-        ret = mbedtls_ssl_conf_srtp_mki_value_supported(conf, support_mki_value);
+        mbedtls_ssl_conf_srtp_mki_value_supported(conf, support_mki_value);
     }
 #endif
     else if (strcasecmp(key, "max_tls_version")==0)
@@ -549,10 +549,12 @@ static LUA_FUNCTION(lmbedtls_ssl_conf_set)
         mbedtls_ssl_conf_renegotiation_period(conf, data);
     }
 #endif /* if defined(MBEDTLS_SSL_RENEGOTIATION) */
+#if defined(MBEDTLS_SSL_PROTO_CNTLS1_1)
     else if (strstr(key, "cntls") || strstr(key, "CNTLS") )
     {
         ret = mbedtls_ssl_config_cntls(conf);
     }
+#endif
     else
     {
         luaL_error(L, "NYI (%s) not support", key);
