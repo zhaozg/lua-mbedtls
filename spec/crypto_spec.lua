@@ -103,4 +103,40 @@ describe("mbedtls crypto tests", function()
             end
         end
     end)
+
+    describe("SM2 tests", function()
+        local pk = mbedtls.pk
+        local rng = mbedtls.rng
+        local drbg = rng.new()
+
+        local kp = assert(pk.new("ECKEY"))
+        assert(kp:genkey(drbg, "sm2p256v1"))
+        assert(kp:cando('ECKEY'))
+
+        local data, pub
+
+        data = assert(kp:write(true, false))
+        pub = assert(pk.new())
+        assert(pub:parse(data .. '\0', true))
+
+        -- data = assert(kp:write(true, true))
+        -- print(mbedtls.hex(data))
+        -- pub = assert(pk.new())
+        -- assert(pub:parse(data, true))
+
+        local items = {"type", "name", "len", "bitlen"}
+        for i=1, #items do
+            assert(kp:get(items[i]))
+        end
+
+
+        local hash = "01234566789012345667890123456678901234566789"
+        local sig = assert(kp:sign(hash, "SM3", drbg))
+        assert(pub:verify(hash, "SM3", sig))
+
+        local cipher = assert(pub:encrypt(hash, drbg))
+        local msg = assert(kp:decrypt(cipher, drbg))
+        assert(msg==hash)
+    end)
+
 end)

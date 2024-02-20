@@ -7,11 +7,14 @@ local uv
 
 local opts = {
     p = "443",
+    certs = {},
+    keys = {}
 }
 local nonoptions = {}
 local getopt = require("getopt")
 
 local function usage()
+    print(debug.traceback())
     print([[
 Usage:
     cli.lua -h hostname -p port -u -v -e -?
@@ -27,7 +30,7 @@ Usage:
 ]])
 end
 
-for opt, arg in getopt(arg, "h:p:P:uve?", nonoptions) do
+for opt, arg in getopt(arg, "h:p:P:a:c:k:uve?", nonoptions) do
     if opt == "h" then
         opts.h = arg
     elseif opt == "p" then
@@ -41,6 +44,15 @@ for opt, arg in getopt(arg, "h:p:P:uve?", nonoptions) do
         os.exit(0)
     elseif opt == 'e' then
         opts.e = true
+    elseif opt == 'a' then
+        opts.auth = arg
+    elseif opt == 'c' then
+        opts.certs[#opts.certs+1] = arg
+    elseif opt == 'C' then
+        local cafile = loadfile(arg)
+        opts.cacerts = assert(crt.new():parse(cafile))
+    elseif opt == 'k' then
+        opts.keys[#opts.keys+1] = arg
     elseif opt == "v" then
         mbedtls.debug_set_threshold("verbose")
     elseif opt == ":" then
@@ -52,7 +64,12 @@ end
 if not (opts.h and opts.p) then
     usage()
     os.exit(1)
-    return
+end
+
+if opts.auth == 'required' and (#opts.certs ~= #opts.keys or #opts.certs == 0) then
+    print("error: missing argument -c for certificates and -k for keys")
+    usage()
+    os.exit(1)
 end
 
 print(string.format("*** connect to %s:%s", opts.h, opts.p))

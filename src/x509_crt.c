@@ -112,10 +112,6 @@ static int lmbedtls_crt_vrfy(void *data, mbedtls_x509_crt *crt, int depth, uint3
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
-#if defined(MBEDTLS_DEBUG_C)
-        mbedtls_debug_print_msg(NULL, 1,  __FILE__, __LINE__,
-                                "%s", lua_tostring(L, -1));
-#endif
         ret = MBEDTLS_ERR_X509_FATAL_ERROR;
     }
     else

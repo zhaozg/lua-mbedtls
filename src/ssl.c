@@ -84,21 +84,20 @@ lmbedtls_ssl_conf_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t
     lua_rawget(L, -2);
     lua_pushlstring(L, (const char *)crt->raw.p, crt->raw.len);
     lua_pushinteger(L, depth);
+    lua_pushinteger(L, *flags);
 
-    ret = lua_pcall(L, 2, 1, 0);
+    ret = lua_pcall(L, 3, 2, 0);
     if (ret != LUA_OK)
     {
-#if defined(MBEDTLS_DEBUG_C)
-        mbedtls_debug_print_msg(NULL, 1,  __FILE__, __LINE__,
-                                "%s", lua_tostring(L, -1));
-#endif
         ret = MBEDTLS_ERR_X509_FATAL_ERROR;
+        lua_pop(L, 2);
     }
     else
     {
-        *flags = (uint32_t)lua_tonumber(L, -1);
+        ret = luaL_optinteger(L, -1, 0);
+        *flags = (uint32_t)luaL_optinteger(L, -2, 0);
+        lua_pop(L, 3);
     }
-    lua_pop(L, 2);
 
     return ret;
 }
@@ -832,10 +831,6 @@ lmbedtls_ssl_send(void *ctx, const unsigned char *buf, size_t len)
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
-#if defined(MBEDTLS_DEBUG_C)
-        mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
-                                "%s", lua_tostring(L, -1));
-#endif
         ret = MBEDTLS_ERR_NET_SEND_FAILED;
     }
     else
@@ -868,10 +863,6 @@ lmbedtls_ssl_recv(void *ctx, unsigned char *buf, size_t len)
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
-#if defined(MBEDTLS_DEBUG_C)
-        mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
-                                "%s", lua_tostring(L, -1));
-#endif
         ret = MBEDTLS_ERR_NET_RECV_FAILED;
     }
     else
@@ -915,10 +906,6 @@ lmbedtls_ssl_recv_timeout(void *ctx, unsigned char *buf, size_t len,
     ret = lua_pcall(L, 3, 1, 0);
     if (ret != LUA_OK)
     {
-#if defined(MBEDTLS_DEBUG_C)
-        mbedtls_debug_print_msg(ssl, 1,  __FILE__, __LINE__,
-                                "%s", lua_tostring(L, -1));
-#endif
         ret = MBEDTLS_ERR_NET_RECV_FAILED;
     }
     else
@@ -957,10 +944,6 @@ lmbedtls_ssl_crt_vrfy(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *fla
     ret = lua_pcall(L, 2, 1, 0);
     if (ret != LUA_OK)
     {
-#if defined(MBEDTLS_DEBUG_C)
-        mbedtls_debug_print_msg(NULL, 1,  __FILE__, __LINE__,
-                                "%s", lua_tostring(L, -1));
-#endif
         ret = MBEDTLS_ERR_X509_FATAL_ERROR;
     }
     else
@@ -1281,35 +1264,6 @@ static LUA_FUNCTION(lmbedtls_ssl_gc)
     return 0;
 }
 
-static LUA_FUNCTION(lmbedtls_ssl_debug_print_msg)
-{
-    mbedtls_ssl_context *ssl = luaL_checkudata(L, 1, LMBEDTLS_SSL_MT);
-
-#if defined(MBEDTLS_DEBUG_C)
-    const char *const lst[] = {
-        "none", "error", "warning", "info", "verbose", NULL
-    };
-    int lvl = luaL_checkoption(L, 2, "debug", lst);
-    lua_Debug ar;
-    const char *file = __FILE__;
-    int line = __LINE__;
-
-    if (lua_getstack(L, 1, &ar)==1)
-    {
-        lua_getinfo(L, "Sl", &ar);
-        file = ar.short_src;
-        line = ar.currentline;
-    }
-
-    mbedtls_debug_print_msg( ssl,  lvl, file, line, "%s", lua_tostring(L, 3));
-    lua_pushvalue(L, 1);
-    return 1;
-#else
-    (void)ssl;
-#endif
-    return 0;
-}
-
 static luaL_Reg ssl_methods[] =
 {
     {"setup",               lmbedtls_ssl_setup},
@@ -1325,7 +1279,6 @@ static luaL_Reg ssl_methods[] =
     {"is_handshake_over",   lmbedtls_ssl_is_handshake_over},
     {"send_alert_message",  lmbedtls_ssl_send_alert_message},
     {"close_notify",        lmbedtls_ssl_close_notify},
-    {"debug_print",         lmbedtls_ssl_debug_print_msg},
 
     {NULL, NULL}
 };
