@@ -1,7 +1,5 @@
 #include "mbedtls.h"
 
-#include "mbedtls/debug.h"
-
 const char *const authmode_lst[] = {"none", "optional", "required", "unset", NULL};
 
 static void
