@@ -2,7 +2,6 @@
 #define mbedtls_lua_h
 
 // mbedtls headers
-#include "mbedtls/mbedtls_config.h"
 #include "mbedtls/cipher.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
@@ -15,7 +14,6 @@
 #include "mbedtls/x509_csr.h"
 
 #include "mbedtls/platform.h"
-#include "mbedtls/debug.h"
 
 // lua headers
 #ifndef LUA_LIB
