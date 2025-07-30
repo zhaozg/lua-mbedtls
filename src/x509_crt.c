@@ -1,5 +1,4 @@
 #include "mbedtls.h"
-
 #include "mbedtls/debug.h"
 
 static LUA_FUNCTION(lmbedtls_crt_parse_file)
