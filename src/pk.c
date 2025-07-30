@@ -2,6 +2,20 @@
 
 #include "mbedtls/pk.h"
 
+static const char *pk_type[] =
+{
+    "NONE",
+    "RSA",
+    "ECKEY",
+    "ECDH",
+    "ECDSA",
+    "RSA_ALT",
+    "RSASSA_PSS",
+    "OPAQUE",
+
+    NULL,
+};
+
 
 static LUA_FUNCTION(lmbedtls_pk_write)
 {
@@ -9,9 +23,9 @@ static LUA_FUNCTION(lmbedtls_pk_write)
     mbedtls_pk_context *pk = luaL_checkudata(L, 1, LMBEDTLS_PK_MT);
     int pub = lua_toboolean(L, 2);
     int der = lua_toboolean(L, 3);
-    size_t blen = 0;
-    unsigned char *buf = NULL;
     int (*write_fn)(const mbedtls_pk_context *ctx, unsigned char *buf, size_t size) = NULL;
+    unsigned char buf[8192];
+    size_t blen = sizeof(buf);
 
 #if defined(MBEDTLS_PK_WRITE_C) && defined(MBEDTLS_PEM_WRITE_C)
     if (der)
@@ -19,7 +33,6 @@ static LUA_FUNCTION(lmbedtls_pk_write)
         write_fn = pub ? mbedtls_pk_write_pubkey_der
                : mbedtls_pk_write_key_der;
     }
-
     else
     {
         write_fn = pub ? mbedtls_pk_write_pubkey_pem
@@ -33,18 +46,17 @@ static LUA_FUNCTION(lmbedtls_pk_write)
     if (write_fn)
     {
         ret = write_fn(pk, buf, blen);
-        if (ret > 0)
+        if (der && ret > 0)
         {
-            buf = mbedtls_calloc(1, blen);
-            ret = write_fn(pk, buf, blen);
-            if (ret > 0)
-            {
-                lua_pushlstring(L, (const char *)buf, blen);
-                mbedtls_free(buf);
-                return 1;
-            }
-            mbedtls_free(buf);
+            lua_pushlstring(L, (const char *)buf, ret);
+            return 1;
         }
+        else if(ret==0)
+        {
+            lua_pushstring(L, (const char *)buf);
+            return 1;
+        }
+
         return mbedtls_pusherror(L, ret);
     }
 
@@ -99,12 +111,48 @@ static LUA_FUNCTION(lmbedtls_pk_decrypt)
     return ret;
 }
 
+static int lmbedtls_imd[] = {
+    MBEDTLS_MD_NONE,    /**< None. */
+    MBEDTLS_MD_MD5,       /**< The MD5 message digest. */
+    MBEDTLS_MD_RIPEMD160, /**< The RIPEMD-160 message digest. */
+    MBEDTLS_MD_SHA1,      /**< The SHA-1 message digest. */
+    MBEDTLS_MD_SHA224,    /**< The SHA-224 message digest. */
+    MBEDTLS_MD_SHA256,    /**< The SHA-256 message digest. */
+    MBEDTLS_MD_SHA384,    /**< The SHA-384 message digest. */
+    MBEDTLS_MD_SHA512,    /**< The SHA-512 message digest. */
+    MBEDTLS_MD_SHA3_224,  /**< The SHA3-224 message digest. */
+    MBEDTLS_MD_SHA3_256,  /**< The SHA3-256 message digest. */
+    MBEDTLS_MD_SHA3_384,  /**< The SHA3-384 message digest. */
+    MBEDTLS_MD_SHA3_512,  /**< The SHA3-512 message digest. */
+    MBEDTLS_MD_SM3,       /**< The SM3 message digest. */
+};
+
+static const char* lmbedtls_smd[] = {
+    "NONE",      /**< None. */
+    "MD5",       /**< The MD5 message digest. */
+    "RIPEMD160", /**< The RIPEMD-160 message digest. */
+    "SHA1",      /**< The SHA-1 message digest. */
+    "SHA224",    /**< The SHA-224 message digest. */
+    "SHA256",    /**< The SHA-256 message digest. */
+    "SHA384",    /**< The SHA-384 message digest. */
+    "SHA512",    /**< The SHA-512 message digest. */
+    "SHA3_224",  /**< The SHA3-224 message digest. */
+    "SHA3_256",  /**< The SHA3-256 message digest. */
+    "SHA3_384",  /**< The SHA3-384 message digest. */
+    "SHA3_512",  /**< The SHA3-512 message digest. */
+    "SM3",       /**< The SM3 message digest. */
+
+    NULL
+};
+
+
 static LUA_FUNCTION(lmbedtls_pk_sign)
 {
     mbedtls_pk_context *pk = luaL_checkudata(L, 1, LMBEDTLS_PK_MT);
     size_t hlen = 0;
     const unsigned char *hash = (const unsigned char *)luaL_checklstring(L, 2, &hlen);
-    mbedtls_md_type_t alg = luaL_checkinteger(L, 3);
+    int idx = luaL_checkoption(L, 3, NULL, lmbedtls_smd);
+    mbedtls_md_type_t alg = lmbedtls_imd[idx];
     mbedtls_ctr_drbg_context *drbg = luaL_checkudata(L, 4, LMBEDTLS_RNG_MT);
     unsigned char sig[MBEDTLS_MPI_MAX_SIZE] = {0};
     size_t slen = sizeof(sig);
@@ -128,7 +176,8 @@ static LUA_FUNCTION(lmbedtls_pk_verify)
     mbedtls_pk_context *pk = luaL_checkudata(L, 1, LMBEDTLS_PK_MT);
     size_t hlen = 0;
     const unsigned char *hash = (const unsigned char *)luaL_checklstring(L, 2, &hlen);
-    mbedtls_md_type_t alg = luaL_checkinteger(L, 3);
+    int idx = luaL_checkoption(L, 3, NULL, lmbedtls_smd);
+    mbedtls_md_type_t alg = lmbedtls_imd[idx];
     size_t slen;
     const unsigned char *sig = (const unsigned char *)luaL_checklstring(L, 4, &slen);
 
@@ -148,8 +197,7 @@ static LUA_FUNCTION(lmbedtls_pk_verify)
 static LUA_FUNCTION(lmbedtls_pk_cando)
 {
     mbedtls_pk_context *pk = luaL_checkudata(L, 1, LMBEDTLS_PK_MT);
-    mbedtls_pk_type_t type = luaL_checkinteger(L, 2);
-
+    const mbedtls_pk_type_t type = luaL_checkoption(L, 2, NULL, pk_type);
     lua_pushboolean(L, mbedtls_pk_can_do(pk, type) != 0);
     return 1;
 }
@@ -159,24 +207,24 @@ static LUA_FUNCTION(lmbedtls_pk_get)
     mbedtls_pk_context *pk = luaL_checkudata(L, 1, LMBEDTLS_PK_MT);
     const char *key = luaL_checkstring(L, 2);
 
-    if (strcasecmp(key, "type"))
+    if (strcasecmp(key, "type")==0)
     {
         mbedtls_pk_type_t type = mbedtls_pk_get_type(pk);
         lua_pushinteger(L, type);
         return 1;
     }
-    else if (strcasecmp(key, "name"))
+    else if (strcasecmp(key, "name")==0)
     {
         const char *name = mbedtls_pk_get_name(pk);
         lua_pushstring(L, name);
         return 1;
     }
-    else if (strcasecmp(key, "len"))
+    else if (strcasecmp(key, "len")==0)
     {
         lua_pushinteger(L, mbedtls_pk_get_len(pk));
         return 1;
     }
-    else if (strcasecmp(key, "bitlen"))
+    else if (strcasecmp(key, "bitlen")==0)
     {
         lua_pushinteger(L, mbedtls_pk_get_bitlen(pk));
         return 1;
@@ -218,18 +266,36 @@ static LUA_FUNCTION(lmbedtls_pk_gc)
     return 0;
 }
 
+static const char *ecp_curve[] = {
+    "none",
+    "secp192r1",
+    "secp224r1",
+    "secp256r1",
+    "secp384r1",
+    "secp512r1",
+    "bp256r1",
+    "bp384r1",
+    "bp512r1",
+    "Curve25519",
+    "secp192k1",
+    "secp224k1",
+    "secp256k1",
+    "sm2p256v1",
+    "curve448",
+    NULL
+};
 
 static LUA_FUNCTION(lmbedtls_pk_genkey)
 {
     mbedtls_pk_context *pk = luaL_checkudata(L, 1, LMBEDTLS_PK_MT);
     mbedtls_ctr_drbg_context *drbg = luaL_checkudata(L, 2, LMBEDTLS_RNG_MT);
     mbedtls_pk_type_t type = mbedtls_pk_get_type(pk);
-    int ret = 0;
+    int ret = MBEDTLS_ERR_PK_TYPE_MISMATCH;
 
 #if defined(MBEDTLS_RSA_C) && defined(MBEDTLS_GENPRIME)
     if (type == MBEDTLS_PK_RSA)
     {
-        unsigned int nbits = luaL_optinteger(L, 3, 4096);
+        unsigned int nbits = luaL_optinteger(L, 3, 2048);
         int exponent = luaL_optinteger(L, 4, 65537);
 
         ret = mbedtls_rsa_gen_key(mbedtls_pk_rsa(*pk), mbedtls_ctr_drbg_random,
@@ -241,18 +307,13 @@ static LUA_FUNCTION(lmbedtls_pk_genkey)
     if (type == MBEDTLS_PK_ECKEY || type == MBEDTLS_PK_ECDSA
         || type == MBEDTLS_PK_ECKEY_DH)
     {
-        mbedtls_ecp_group_id gid = luaL_checkinteger(L, 3);
-
+        mbedtls_ecp_group_id gid = luaL_checkoption(L, 3, NULL, ecp_curve);
         ret = mbedtls_ecp_gen_key(gid, mbedtls_pk_ec(*pk),
                                   mbedtls_ctr_drbg_random, drbg);
     }
-    else
 #endif
-    {
-        ret = MBEDTLS_ERR_PK_TYPE_MISMATCH;
-    }
 
-    if (ret)
+    if (ret!=0)
     {
         return mbedtls_pusherror(L, ret);
     }
@@ -338,35 +399,12 @@ static LUA_FUNCTION(lmbedtls_pk_parse)
     return 1;
 }
 
-static const char *pk_type[] =
-{
-    "NONE",
-    "RSA",
-    "ECKEY",
-    "ECKEY_DH",
-    "ECDSA",
-    "RSA_ALT",
-    "RSASSA_PSS",
-    "OPAQUE",
-
-    NULL,
-};
-
 static LUA_FUNCTION(lmbedtls_pk_new)
 {
-    const mbedtls_pk_info_t *info = NULL;
-    mbedtls_pk_context *pk = NULL;
+    const mbedtls_pk_type_t type = luaL_checkoption(L, 1, "NONE", pk_type);
+    const mbedtls_pk_info_t *info = mbedtls_pk_info_from_type(type);
+    mbedtls_pk_context *pk = lua_newuserdata(L, sizeof(mbedtls_pk_context));
 
-    luaL_argcheck(L, lua_isnone(L, 1) || lua_isstring(L, 1), 1, "none or string only");
-
-    if (lua_isstring(L, 1))
-    {
-        const mbedtls_pk_type_t type = luaL_checkoption(L, 1, NULL, pk_type);
-        info = mbedtls_pk_info_from_type(type);
-        luaL_argcheck(L, info != NULL, 1, strerror(EINVAL));
-    }
-
-    pk = lua_newuserdata(L, sizeof(mbedtls_pk_context));
     if (!pk)
     {
         return luaL_error(L, strerror(errno));

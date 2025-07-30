@@ -2,11 +2,18 @@ local mbedtls = require("mbedtls")
 local ssl = mbedtls.ssl
 local net = mbedtls.net
 local rng = mbedtls.rng
+local pk = mbedtls.pk
+local crt = mbedtls.crt
+
+rng = assert(rng.new())
 
 local uv
 
 local opts = {
     p = "443",
+    auth = 'mode',
+    certs = {},
+    keys = {},
 }
 local nonoptions = {}
 local getopt = require("getopt")
@@ -19,15 +26,22 @@ Usage:
     -h: hostname to connect
     -p: port to connect
     -u: event mode with luv if support
-    -a: authmode none/require/optional [NYI]
+    -a: authmode none/require/optional
     -c: ciphersites of ssl [NYI]
-    -P: protocol tls12/tls13/cntls [PART]
+    -P: protocol tls12/tls13/cntls
     -v: verbose output to debug
     -e: echo mode
 ]])
 end
 
-for opt, arg in getopt(arg, "h:p:P:uve?", nonoptions) do
+local function loadfile(path)
+    local f= assert(io.open(path, 'rb'))
+    local ctx = f:read('*all')
+    f:close()
+    return ctx .. '\0'
+end
+
+for opt, arg in getopt(arg, "h:p:P:a:c:k:C:uve?", nonoptions) do
     if opt == "h" then
         opts.h = arg
     elseif opt == "p" then
@@ -41,8 +55,21 @@ for opt, arg in getopt(arg, "h:p:P:uve?", nonoptions) do
         os.exit(0)
     elseif opt == 'e' then
         opts.e = true
+    elseif opt == 'a' then
+        opts.auth = arg
+    elseif opt == 'C' then
+        local cafile = loadfile(arg)
+        opts.cacerts = assert(crt.new():parse(cafile), cafile)
+    elseif opt == 'c' then
+        local cert = loadfile(arg)
+        opts.certs[#opts.certs+1] = assert(crt.new():parse(cert), arg)
+    elseif opt == 'k' then
+        local ctx = loadfile(arg)
+        opts.keys[#opts.keys+1] = assert(pk.new():parse(ctx, false, rng), arg)
     elseif opt == "v" then
-        mbedtls.debug_set_threshold("verbose")
+        if mbedtls.debug_set_threshold then
+            mbedtls.debug_set_threshold("verbose")
+        end
     elseif opt == ":" then
         print("error: missing argument: " .. arg)
         os.exit(1)
@@ -52,19 +79,22 @@ end
 if not (opts.h and opts.p) then
     usage()
     os.exit(1)
-    return
+end
+
+if opts.auth == 'required' and (#opts.certs ~= #opts.keys or #opts.certs == 0) then
+    print("error: missing argument -c for certificates and -k for keys")
+    usage()
+    os.exit(1)
 end
 
 print(string.format("*** connect to %s:%s", opts.h, opts.p))
-
-rng = assert(rng.new())
 
 -- build ssl config
 local conf = assert(ssl.config_new())
 
 assert(conf:set("rng", rng))
 assert(conf:set("dbg"))
-assert(conf:set("authmode", "none"))
+assert(conf:set("authmode", opts.auth))
 
 if opts.P and opts.P:match("^cntls") then
     assert(conf:set("min_tls_version", 1, 1))
@@ -72,6 +102,15 @@ if opts.P and opts.P:match("^cntls") then
     assert(conf:set("cntls"))
 end
 
+if opts.cacerts then
+    assert(conf:set('ca_chain', opts.cacerts))
+end
+for i=1, #opts.certs do
+    assert(conf:set("own_cert", opts.certs[i], opts.keys[i]))
+end
+conf:set("verify", function(...)
+    return 0
+end)
 local scli = assert(ssl.ssl_new(conf))
 assert(scli:setup(conf))
 
@@ -83,6 +122,7 @@ local function net_cli(scli)
 
     -- do ssl connect
     assert(scli:set("bio", cli))
+    print(string.format("*** SSL handshaking..."))
     assert(scli:handshake())
 
     print(string.format("*** SSL handshake done"))

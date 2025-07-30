@@ -4,7 +4,6 @@ package.path = "spec/?.lua;" .. package.path
 local data = require("data")
 
 local ssl = mbedtls.ssl
-local net = mbedtls.net
 local rng = mbedtls.rng
 
 local pk = mbedtls.pk
