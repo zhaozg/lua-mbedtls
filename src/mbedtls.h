@@ -14,6 +14,11 @@
 #include "mbedtls/x509_csr.h"
 
 #include "mbedtls/platform.h"
+#ifdef MBEDTLS_DEBUG_C
+void mbedtls_debug_print_msg(const mbedtls_ssl_context *ssl, int level,
+                             const char *file, int line,
+                             const char *format, ...);
+#endif
 
 // lua headers
 #ifndef LUA_LIB
@@ -28,6 +33,7 @@
 #include <string.h>
 
 #include "compat.h"
+
 
 #define _NAME "mbedtls"
 #define _VERSION "0.1.0"
